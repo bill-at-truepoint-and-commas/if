@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeBlocker - Weekly</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Week Selector -->
+        <div id="week-indicator">
+            <span>week:</span>
+            <select id="week-dropdown">
+                <option>Loading...</option>
+            </select>
+        </div>
+
+        <!-- Save Indicator -->
+        <div id="save-indicator">saved!</div>
+
+        <!-- Weekly Table -->
+        <table id="weekly-table">
+            <thead>
+                <tr>
+                    <th>Week of</th>
+                    <th>Monday</th>
+                    <th>Tuesday</th>
+                    <th>Wednesday</th>
+                    <th>Thursday</th>
+                    <th>Friday</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr data-role="worker">
+                    <td class="role-cell">worker</td>
+                    <td class="editable-cell" data-day="monday"></td>
+                    <td class="editable-cell" data-day="tuesday"></td>
+                    <td class="editable-cell" data-day="wednesday"></td>
+                    <td class="editable-cell" data-day="thursday"></td>
+                    <td class="editable-cell" data-day="friday"></td>
+                </tr>
+                <tr data-role="coach">
+                    <td class="role-cell">coach</td>
+                    <td class="editable-cell" data-day="monday"></td>
+                    <td class="editable-cell" data-day="tuesday"></td>
+                    <td class="editable-cell" data-day="wednesday"></td>
+                    <td class="editable-cell" data-day="thursday"></td>
+                    <td class="editable-cell" data-day="friday"></td>
+                </tr>
+                <tr data-role="team lead">
+                    <td class="role-cell">team lead</td>
+                    <td class="editable-cell" data-day="monday"></td>
+                    <td class="editable-cell" data-day="tuesday"></td>
+                    <td class="editable-cell" data-day="wednesday"></td>
+                    <td class="editable-cell" data-day="thursday"></td>
+                    <td class="editable-cell" data-day="friday"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Location selectors in header -->
+        <div id="location-controls" style="position: fixed; top: 60px; left: 20px; display: flex; gap: 12px;">
+            <div style="margin-right: 20px;">
+                <a href="../index.html" style="color: #333; text-decoration: underline; font-weight: 700;">← back to daily</a>
+            </div>
+            <div>
+                <label style="font-size: 12px; font-weight: 700;">Monday:</label>
+                <select class="location-selector" data-day="monday">
+                    <option value="🏠">🏠</option>
+                    <option value="🏢">🏢</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; font-weight: 700;">Tuesday:</label>
+                <select class="location-selector" data-day="tuesday">
+                    <option value="🏠">🏠</option>
+                    <option value="🏢">🏢</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; font-weight: 700;">Wednesday:</label>
+                <select class="location-selector" data-day="wednesday">
+                    <option value="🏠">🏠</option>
+                    <option value="🏢">🏢</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; font-weight: 700;">Thursday:</label>
+                <select class="location-selector" data-day="thursday">
+                    <option value="🏠">🏠</option>
+                    <option value="🏢">🏢</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; font-weight: 700;">Friday:</label>
+                <select class="location-selector" data-day="friday">
+                    <option value="🏠">🏠</option>
+                    <option value="🏢">🏢</option>
+                </select>
+            </div>
+        </div>
+
+        <script src="week.js"></script>
+    </div>
+</body>
+</html>

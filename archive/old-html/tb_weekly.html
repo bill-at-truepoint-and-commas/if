@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tb_weekly</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+        // Function to get the current week range in format: Oct27-31
+        function getCurrentWeek() {
+            const today = new Date();
+            
+            // Find Monday of current week
+            const dayOfWeek = today.getDay();
+            const monday = new Date(today);
+            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            monday.setDate(today.getDate() + diff);
+            
+            // Find Friday of current week
+            const friday = new Date(monday);
+            friday.setDate(monday.getDate() + 4);
+            
+            // Format the dates
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = monthNames[monday.getMonth()];
+            const mondayDate = monday.getDate();
+            const fridayDate = friday.getDate();
+            
+            return `${month}${mondayDate}-${fridayDate}`;
+        }
+        
+        // Parse week string to get Monday date
+        function parseWeekString(weekStr) {
+            const match = weekStr.match(/([A-Za-z]+)(\d+)-(\d+)/);
+            if (!match) return null;
+            
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthIndex = monthNames.indexOf(match[1]);
+            const startDay = parseInt(match[2]);
+            
+            const year = new Date().getFullYear();
+            return new Date(year, monthIndex, startDay);
+        }
+        
+        // Check if week is in the past
+        function isWeekInPast(weekStr) {
+            const currentWeek = getCurrentWeek();
+            if (weekStr === currentWeek) return false;
+            
+            const weekDate = parseWeekString(weekStr);
+            const currentWeekDate = parseWeekString(currentWeek);
+            
+            return weekDate < currentWeekDate;
+        }
+        
+        // Global variable for current selected week
+        let selectedWeek = getCurrentWeek();
+        
+        // Generate unique storage key based on week
+        function getStorageKey(week) {
+            return 'timeblocking_week_' + week;
+        }
+        
+        // Save table data to localStorage
+        function saveTableData() {
+            const tables = document.querySelectorAll('table');
+            const tableData = [];
+            
+            tables.forEach((table, tableIndex) => {
+                const rows = [];
+                const bodyCells = table.querySelectorAll('tbody tr');
+                
+                bodyCells.forEach((row, rowIndex) => {
+                    const cells = row.querySelectorAll('td');
+                    const rowData = [];
+                    
+                    cells.forEach((cell, cellIndex) => {
+                        let content = cell.innerHTML;
+                        rowData.push(content);
+                    });
+                    
+                    rows.push(rowData);
+                });
+                
+                tableData.push(rows);
+            });
+            
+            const storageKey = getStorageKey(selectedWeek);
+            localStorage.setItem(storageKey, JSON.stringify(tableData));
+            
+            // Trigger HTMX event for save indicator
+            htmx.trigger('#save-indicator', 'show-save');
+        }
+        
+        // Load table data from localStorage for specific week
+        function loadTableData(week) {
+            const storageKey = getStorageKey(week);
+            const savedData = localStorage.getItem(storageKey);
+            
+            if (!savedData) return false;
+            
+            try {
+                const tableData = JSON.parse(savedData);
+                const tables = document.querySelectorAll('table');
+                
+                tables.forEach((table, tableIndex) => {
+                    if (!tableData[tableIndex]) return;
+                    
+                    const bodyCells = table.querySelectorAll('tbody tr');
+                    bodyCells.forEach((row, rowIndex) => {
+                        if (!tableData[tableIndex][rowIndex]) return;
+                        
+                        const cells = row.querySelectorAll('td');
+                        cells.forEach((cell, cellIndex) => {
+                            const content = tableData[tableIndex][rowIndex][cellIndex];
+                            if (content && content.trim() !== '') {
+                                cell.innerHTML = content;
+                            } else {
+                                cell.innerHTML = '<ul class="bullet-list"></ul>';
+                            }
+                        });
+                    });
+                });
+                
+                return true;
+            } catch (e) {
+                console.error('Error loading saved data:', e);
+                return false;
+            }
+        }
+        
+        // Clear all cells
+        function clearAllCells() {
+            const tables = document.querySelectorAll('table');
+            tables.forEach(table => {
+                const bodyCells = table.querySelectorAll('tbody td');
+                bodyCells.forEach(cell => {
+                    cell.innerHTML = '<ul class="bullet-list"></ul>';
+                });
+            });
+        }
+        
+        // Set cells to read-only or editable
+        function setCellsReadOnly(readOnly) {
+            const tables = document.querySelectorAll('table');
+            tables.forEach(table => {
+                const bodyCells = table.querySelectorAll('tbody td');
+                bodyCells.forEach(cell => {
+                    if (readOnly) {
+                        cell.contentEditable = 'false';
+                        cell.classList.add('read-only');
+                        cell.style.cursor = 'default';
+                    } else {
+                        cell.contentEditable = 'true';
+                        cell.classList.remove('read-only');
+                        cell.style.cursor = 'text';
+                    }
+                });
+            });
+        }
+        
+        // Switch to different week
+        function switchWeek(week) {
+            selectedWeek = week;
+            
+            clearAllCells();
+            loadTableData(week);
+            loadLocationPreferences(week);
+            
+            const isPast = isWeekInPast(week);
+            setCellsReadOnly(isPast);
+            
+            document.querySelectorAll('.location-selector').forEach(selector => {
+                selector.disabled = isPast;
+            });
+        }
+        
+        // Get all saved weeks from localStorage
+        function getSavedWeeks() {
+            const allKeys = Object.keys(localStorage).filter(key => key.startsWith('timeblocking_week_'));
+            let weeks = allKeys.map(key => key.replace('timeblocking_week_', ''));
+            
+            weeks.sort((a, b) => {
+                const dateA = parseWeekString(a);
+                const dateB = parseWeekString(b);
+                return dateB - dateA;
+            });
+            
+            const currentWeek = getCurrentWeek();
+            if (!weeks.includes(currentWeek)) {
+                weeks.unshift(currentWeek);
+            }
+            
+            return weeks.slice(0, 6);
+        }
+        
+        // Populate week dropdown
+        function populateWeekDropdown() {
+            const dropdown = document.getElementById('week-dropdown');
+            if (!dropdown) return;
+            
+            const weeks = getSavedWeeks();
+            const currentWeek = getCurrentWeek();
+            
+            dropdown.innerHTML = '';
+            weeks.forEach(week => {
+                const option = document.createElement('option');
+                option.value = week;
+                option.textContent = week;
+                if (week === currentWeek) {
+                    option.selected = true;
+                }
+                dropdown.appendChild(option);
+            });
+            
+            dropdown.addEventListener('change', function() {
+                switchWeek(this.value);
+            });
+        }
+        
+        // Handle Enter key for new bullet points
+        function handleEnterKey(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                
+                const ul = e.target.querySelector('ul.bullet-list');
+                if (ul) {
+                    const newLi = document.createElement('li');
+                    newLi.innerHTML = '<br>';
+                    ul.appendChild(newLi);
+                    
+                    // Move cursor to new item
+                    setTimeout(() => {
+                        const range = document.createRange();
+                        const sel = window.getSelection();
+                        range.setStart(newLi, 0);
+                        range.collapse(true);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }, 0);
+                }
+            }
+        }
+        
+        // Process cell content - linkify URLs
+        function processCellContent(cell) {
+            const ul = cell.querySelector('ul.bullet-list');
+            if (!ul) return;
+            
+            const items = ul.querySelectorAll('li');
+            items.forEach(li => {
+                let content = li.innerHTML;
+                
+                if (content.match(/https?:\/\/[^\s<]+/) && !content.includes('<a')) {
+                    const urlRegex = /(https?:\/\/[^\s<]+)/g;
+                    content = content.replace(urlRegex, '<a href="$1" target="_blank" class="cell-link">$1</a>');
+                    li.innerHTML = content;
+                }
+            });
+        }
+        
+        // Clear saved data for current week
+        function clearTableData() {
+            if (confirm('Clear all saved data for week ' + selectedWeek + '?')) {
+                localStorage.removeItem(getStorageKey(selectedWeek));
+                location.reload();
+            }
+        }
+        
+        // Save location preferences
+        function saveLocationPreferences() {
+            const locationData = {};
+            document.querySelectorAll('.location-selector').forEach(selector => {
+                locationData[selector.dataset.day] = selector.value;
+            });
+            
+            localStorage.setItem('timeblocking_locations_' + selectedWeek, JSON.stringify(locationData));
+        }
+        
+        // Load location preferences
+        function loadLocationPreferences(week) {
+            const savedData = localStorage.getItem('timeblocking_locations_' + week);
+            if (!savedData) return;
+            
+            try {
+                const locationData = JSON.parse(savedData);
+                document.querySelectorAll('.location-selector').forEach(selector => {
+                    const day = selector.dataset.day;
+                    if (locationData[day]) {
+                        selector.value = locationData[day];
+                    }
+                });
+            } catch (e) {
+                console.error('Error loading location preferences:', e);
+            }
+        }
+        
+        // Add location selectors to headers
+        function addLocationSelectors() {
+            const headerCells = document.querySelectorAll('thead th');
+            const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+            
+            headerCells.forEach((th, index) => {
+                if (index === 0) return;
+                
+                const dayIndex = index - 1;
+                if (dayIndex >= dayNames.length) return;
+                
+                const day = dayNames[dayIndex];
+                const originalText = th.textContent.trim();
+                
+                th.innerHTML = '';
+                th.style.padding = '12px 16px';
+                
+                const container = document.createElement('div');
+                container.style.display = 'flex';
+                container.style.justifyContent = 'space-between';
+                container.style.alignItems = 'center';
+                container.style.gap = '12px';
+                
+                const dayText = document.createElement('div');
+                dayText.textContent = originalText;
+                dayText.style.textAlign = 'left';
+                dayText.style.flex = '1';
+                
+                const selector = document.createElement('select');
+                selector.className = 'location-selector';
+                selector.dataset.day = day;
+                
+                const homeOption = document.createElement('option');
+                homeOption.value = '🏠';
+                homeOption.textContent = '🏠';
+                
+                const officeOption = document.createElement('option');
+                officeOption.value = '🏢';
+                officeOption.textContent = '🏢';
+                
+                selector.appendChild(homeOption);
+                selector.appendChild(officeOption);
+                
+                selector.addEventListener('change', function() {
+                    saveLocationPreferences();
+                });
+                
+                container.appendChild(dayText);
+                container.appendChild(selector);
+                th.appendChild(container);
+            });
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('th').forEach(th => {
+                if (th.textContent.includes('{{current_week}}')) {
+                    th.textContent = '';
+                }
+            });
+            
+            addLocationSelectors();
+            populateWeekDropdown();
+            loadTableData(selectedWeek);
+            loadLocationPreferences(selectedWeek);
+            
+            // Setup editable cells
+            const tables = document.querySelectorAll('table');
+            tables.forEach(table => {
+                const bodyCells = table.querySelectorAll('tbody td');
+                bodyCells.forEach((cell, index) => {
+                    const row = cell.parentElement;
+                    const cellIndex = Array.from(row.children).indexOf(cell);
+                    
+                    // Skip first column (row headers - time slots)
+                    if (cellIndex === 0) {
+                        cell.contentEditable = 'false';
+                        cell.style.cursor = 'default';
+                        cell.style.fontWeight = '700';
+                        cell.style.backgroundColor = '#f8f8f8';
+                        return;
+                    }
+                    
+                    cell.contentEditable = 'true';
+                    cell.classList.add('editable-cell');
+                    
+                    // Initialize with empty bullet list
+                    if (cell.textContent.trim() === '') {
+                        cell.innerHTML = '<ul class="bullet-list"></ul>';
+                    }
+                    
+                    // Handle focus - add first item if empty
+                    cell.addEventListener('focus', function() {
+                        const ul = this.querySelector('ul.bullet-list');
+                        if (ul && ul.children.length === 0) {
+                            const li = document.createElement('li');
+                            li.innerHTML = '<br>';
+                            ul.appendChild(li);
+                            
+                            setTimeout(() => {
+                                const range = document.createRange();
+                                const sel = window.getSelection();
+                                range.setStart(li, 0);
+                                range.collapse(true);
+                                sel.removeAllRanges();
+                                sel.addRange(range);
+                            }, 0);
+                        }
+                    });
+                    
+                    // Handle blur
+                    cell.addEventListener('blur', function() {
+                        processCellContent(this);
+                        
+                        // Remove empty list items
+                        const ul = this.querySelector('ul.bullet-list');
+                        if (ul) {
+                            const items = ul.querySelectorAll('li');
+                            items.forEach(li => {
+                                if (li.textContent.trim() === '') {
+                                    li.remove();
+                                }
+                            });
+                        }
+                        
+                        saveTableData();
+                    });
+                    
+                    // Handle Enter key
+                    cell.addEventListener('keydown', handleEnterKey);
+                    
+                    // Auto-save on input
+                    let saveTimeout;
+                    cell.addEventListener('input', function() {
+                        clearTimeout(saveTimeout);
+                        saveTimeout = setTimeout(() => {
+                            saveTableData();
+                        }, 1000);
+                    });
+                });
+            });
+            
+            // Setup save indicator
+            const saveIndicator = document.getElementById('save-indicator');
+            if (saveIndicator) {
+                htmx.on(saveIndicator, 'show-save', function() {
+                    this.style.opacity = '1';
+                    setTimeout(() => {
+                        this.style.opacity = '0';
+                    }, 2000);
+                });
+            }
+        });
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            background: #fefefe;
+            color: #333;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            margin: 30px auto;
+            max-width: 1400px;
+            background: white;
+            position: relative;
+        }
+        
+        table::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border: 2px solid #333;
+            border-radius: 3px;
+            pointer-events: none;
+        }
+        
+        th, td {
+            border: 1.5px solid #333;
+            padding: 16px;
+            text-align: left;
+            vertical-align: top;
+            position: relative;
+        }
+        
+        th {
+            background: #f8f8f8;
+            font-weight: 700;
+            font-size: 16px;
+            text-transform: lowercase;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+        }
+        
+        th:first-child {
+            border-top-left-radius: 3px;
+        }
+        
+        th:last-child {
+            border-top-right-radius: 3px;
+        }
+        
+        th:empty {
+            background: #f8f8f8;
+            min-width: 80px;
+        }
+        
+        td {
+            background: white;
+            font-size: 14px;
+            min-height: 80px;
+            transition: background 0.15s ease;
+        }
+        
+        .editable-cell:hover:not(.read-only) {
+            background: #f9f9f9;
+            cursor: text;
+        }
+        
+        .editable-cell:focus:not(.read-only) {
+            outline: none;
+            background: #fff;
+            box-shadow: inset 0 0 0 2px #96ceb4;
+        }
+        
+        .editable-cell.read-only {
+            background: #f5f5f5;
+            cursor: default;
+            color: #666;
+        }
+        
+        .cell-link {
+            color: #0066cc;
+            text-decoration: none;
+            border-bottom: 1px dotted #0066cc;
+        }
+        
+        .cell-link:hover {
+            color: #004499;
+            border-bottom-style: solid;
+        }
+        
+        #save-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #96ceb4;
+            color: #333;
+            padding: 8px 16px;
+            border: 2px solid #333;
+            border-radius: 3px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        
+        #day-indicator, #week-indicator {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            color: #333;
+            padding: 8px 16px;
+            border: 2px solid #333;
+            border-radius: 3px;
+            z-index: 1000;
+            font-weight: 700;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        #day-dropdown, #week-dropdown {
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            font-size: 14px;
+            font-weight: 700;
+            border: 2px solid #333;
+            border-radius: 3px;
+            padding: 4px 8px;
+            background: white;
+            cursor: pointer;
+            outline: none;
+        }
+        
+        #day-dropdown:hover, #week-dropdown:hover {
+            background: #f9f9f9;
+        }
+        
+        #button-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .control-button {
+            background: white;
+            color: #333;
+            padding: 10px 18px;
+            border: 2px solid #333;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            font-weight: 400;
+            transition: all 0.15s ease;
+        }
+        
+        .control-button:hover {
+            background: #f0f0f0;
+            transform: translateY(-1px);
+        }
+        
+        .control-button:active {
+            transform: translateY(0);
+        }
+        
+        .control-button.danger {
+            background: #ffaaa5;
+        }
+        
+        .control-button.danger:hover {
+            background: #ff8b85;
+        }
+        
+        #instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #ffeaa7;
+            color: #333;
+            padding: 12px 16px;
+            border: 2px solid #333;
+            border-radius: 3px;
+            z-index: 1000;
+            font-size: 12px;
+            max-width: 220px;
+            line-height: 1.5;
+        }
+        
+        #instructions strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+            margin: 20px 0 10px 0;
+            color: #333;
+        }
+        
+        p {
+            margin: 10px 0;
+        }
+        
+        ::selection {
+            background: #96ceb4;
+            color: #333;
+        }
+    </style>
+
+    <style>
+        .location-selector {
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            font-size: 18px;
+            border: 2px solid #333;
+            border-radius: 3px;
+            padding: 2px 6px;
+            background: white;
+            cursor: pointer;
+            outline: none;
+        }
+        
+        .location-selector:hover:not(:disabled) {
+            background: #f9f9f9;
+        }
+        
+        .location-selector:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .bullet-list {
+            list-style-type: disc;
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .bullet-list li {
+            margin: 6px 0;
+            padding-left: 4px;
+            line-height: 1.4;
+        }
+        
+        .bullet-list li:focus {
+            outline: none;
+        }
+    </style>
+
+</head>
+<body>
+<table>
+<thead>
+<tr>
+<th>Week of {{current_week}}</th>
+<th>Monday</th>
+<th>Tuesday</th>
+<th>Wednesday</th>
+<th>Thursday</th>
+<th>Friday</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>worker</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>coach</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>team lead</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+
+
+<div id="save-indicator">saved!</div>
+
+<div id="week-indicator">
+    <span>week:</span>
+    <select id="week-dropdown">
+        <option>Loading...</option>
+    </select>
+</div>
+
+<div id="button-container">
+    <button class="control-button danger" onclick="clearTableData()">
+        clear week
+    </button>
+</div>
+
+<div id="instructions">
+    <strong>how to use:</strong>
+    • enter = new bullet<br>
+    • paste urls to link<br>
+    • auto-saves<br>
+    • past weeks = read-only
+</div>
+
+</body>
+</html>

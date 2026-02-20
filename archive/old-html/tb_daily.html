@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tb_daily</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+        // Get current week in format: Oct27-31
+        function getCurrentWeek() {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const monday = new Date(today);
+            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            monday.setDate(today.getDate() + diff);
+            
+            const friday = new Date(monday);
+            friday.setDate(monday.getDate() + 4);
+            
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = monthNames[monday.getMonth()];
+            const mondayDate = monday.getDate();
+            const fridayDate = friday.getDate();
+            
+            return `${month}${mondayDate}-${fridayDate}`;
+        }
+        
+        // Get day of week name
+        function getDayOfWeek(date) {
+            const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            return days[date.getDay()];
+        }
+        
+        // Global current selected day
+        let selectedDay = new Date();
+        
+        // Get storage key
+        function getStorageKey(date) {
+            const dayName = getDayOfWeek(date);
+            const week = getCurrentWeek();
+            return `dayplanner_${dayName}_weekof_${week}`;
+        }
+        
+        // Save table data
+        function saveTableData() {
+            const tables = document.querySelectorAll('table');
+            const tableData = [];
+            
+            tables.forEach((table, tableIndex) => {
+                const rows = [];
+                const bodyCells = table.querySelectorAll('tbody tr');
+                
+                bodyCells.forEach((row, rowIndex) => {
+                    const cells = row.querySelectorAll('td');
+                    const rowData = [];
+                    
+                    cells.forEach((cell, cellIndex) => {
+                        rowData.push(cell.innerHTML);
+                    });
+                    
+                    rows.push(rowData);
+                });
+                
+                tableData.push(rows);
+            });
+            
+            const storageKey = getStorageKey(selectedDay);
+            localStorage.setItem(storageKey, JSON.stringify(tableData));
+            
+            htmx.trigger('#save-indicator', 'show-save');
+        }
+        
+        // Load table data
+        function loadTableData(date) {
+            const storageKey = getStorageKey(date);
+            const savedData = localStorage.getItem(storageKey);
+            
+            if (!savedData) return false;
+            
+            try {
+                const tableData = JSON.parse(savedData);
+                const tables = document.querySelectorAll('table');
+                
+                tables.forEach((table, tableIndex) => {
+                    if (!tableData[tableIndex]) return;
+                    
+                    const bodyCells = table.querySelectorAll('tbody tr');
+                    bodyCells.forEach((row, rowIndex) => {
+                        if (!tableData[tableIndex][rowIndex]) return;
+                        
+                        const cells = row.querySelectorAll('td');
+                        cells.forEach((cell, cellIndex) => {
+                            const content = tableData[tableIndex][rowIndex][cellIndex];
+                            if (content && content.trim() !== '') {
+                                cell.innerHTML = content;
+                            } else {
+                                cell.innerHTML = '<ul class="task-list"></ul>';
+                            }
+                        });
+                    });
+                });
+                
+                return true;
+            } catch (e) {
+                console.error('Error loading saved data:', e);
+                return false;
+            }
+        }
+        
+        // Clear all cells
+        function clearAllCells() {
+            const tables = document.querySelectorAll('table');
+            tables.forEach(table => {
+                const bodyCells = table.querySelectorAll('tbody td');
+                bodyCells.forEach(cell => {
+                    cell.innerHTML = '<ul class="task-list"></ul>';
+                });
+            });
+        }
+        
+        // Switch to different day
+        function switchDay(date) {
+            selectedDay = date;
+            clearAllCells();
+            loadTableData(date);
+        }
+        
+        // Get days of current week
+        function getDaysOfWeek() {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const monday = new Date(today);
+            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            monday.setDate(today.getDate() + diff);
+            
+            const days = [];
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(monday);
+                day.setDate(monday.getDate() + i);
+                days.push(day);
+            }
+            
+            return days;
+        }
+        
+        // Populate day dropdown
+        function populateDayDropdown() {
+            const dropdown = document.getElementById('day-dropdown');
+            if (!dropdown) return;
+            
+            const days = getDaysOfWeek();
+            const today = new Date().toDateString();
+            const currentWeek = getCurrentWeek();
+            
+            dropdown.innerHTML = '';
+            days.forEach(day => {
+                const option = document.createElement('option');
+                const dayName = getDayOfWeek(day);
+                option.value = day.toDateString();
+                option.textContent = `${dayName}-weekof-${currentWeek}`;
+                if (day.toDateString() === today) {
+                    option.selected = true;
+                }
+                dropdown.appendChild(option);
+            });
+            
+            dropdown.addEventListener('change', function() {
+                switchDay(new Date(this.value));
+            });
+        }
+        
+        // Handle Enter key for new task
+        function handleEnterKey(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                
+                const ul = e.target.querySelector('ul.task-list');
+                if (ul) {
+                    const newLi = document.createElement('li');
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'task-checkbox';
+                    
+                    const textSpan = document.createElement('span');
+                    textSpan.className = 'task-text';
+                    textSpan.contentEditable = 'true';
+                    textSpan.innerHTML = '<br>';
+                    
+                    newLi.appendChild(checkbox);
+                    newLi.appendChild(textSpan);
+                    ul.appendChild(newLi);
+                    
+                    // Handle checkbox
+                    checkbox.addEventListener('change', function() {
+                        if (this.checked) {
+                            textSpan.style.textDecoration = 'line-through';
+                            textSpan.style.color = '#999';
+                        } else {
+                            textSpan.style.textDecoration = 'none';
+                            textSpan.style.color = '#333';
+                        }
+                        saveTableData();
+                    });
+                    
+                    // Focus new task
+                    setTimeout(() => {
+                        const range = document.createRange();
+                        const sel = window.getSelection();
+                        range.setStart(textSpan, 0);
+                        range.collapse(true);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }, 0);
+                }
+            }
+        }
+        
+        // Clear saved data for current day
+        function clearTableData() {
+            const dayName = getDayOfWeek(selectedDay);
+            const week = getCurrentWeek();
+            if (confirm(`Clear all saved data for ${dayName}-weekof-${week}?`)) {
+                localStorage.removeItem(getStorageKey(selectedDay));
+                location.reload();
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            populateDayDropdown();
+            loadTableData(selectedDay);
+            
+            // Setup editable cells
+            const tables = document.querySelectorAll('table');
+            tables.forEach(table => {
+                const bodyCells = table.querySelectorAll('tbody td');
+                bodyCells.forEach(cell => {
+                    cell.contentEditable = 'true';
+                    cell.classList.add('editable-cell');
+                    
+                    // Initialize with empty task list
+                    if (cell.textContent.trim() === '') {
+                        cell.innerHTML = '<ul class="task-list"></ul>';
+                    }
+                    
+                    // Handle focus - add first task if empty
+                    cell.addEventListener('focus', function() {
+                        const ul = this.querySelector('ul.task-list');
+                        if (ul && ul.children.length === 0) {
+                            const li = document.createElement('li');
+                            
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.className = 'task-checkbox';
+                            
+                            const textSpan = document.createElement('span');
+                            textSpan.className = 'task-text';
+                            textSpan.contentEditable = 'true';
+                            textSpan.innerHTML = '<br>';
+                            
+                            li.appendChild(checkbox);
+                            li.appendChild(textSpan);
+                            ul.appendChild(li);
+                            
+                            // Handle checkbox
+                            checkbox.addEventListener('change', function() {
+                                if (this.checked) {
+                                    textSpan.style.textDecoration = 'line-through';
+                                    textSpan.style.color = '#999';
+                                } else {
+                                    textSpan.style.textDecoration = 'none';
+                                    textSpan.style.color = '#333';
+                                }
+                                saveTableData();
+                            });
+                            
+                            setTimeout(() => {
+                                const range = document.createRange();
+                                const sel = window.getSelection();
+                                range.setStart(textSpan, 0);
+                                range.collapse(true);
+                                sel.removeAllRanges();
+                                sel.addRange(range);
+                            }, 0);
+                        }
+                    });
+                    
+                    // Handle blur
+                    cell.addEventListener('blur', function() {
+                        // Remove empty tasks
+                        const ul = this.querySelector('ul.task-list');
+                        if (ul) {
+                            const items = ul.querySelectorAll('li');
+                            items.forEach(li => {
+                                const textSpan = li.querySelector('.task-text');
+                                if (textSpan && textSpan.textContent.trim() === '') {
+                                    li.remove();
+                                }
+                            });
+                        }
+                        
+                        saveTableData();
+                    });
+                    
+                    // Handle Enter key
+                    cell.addEventListener('keydown', handleEnterKey);
+                    
+                    // Auto-save on input
+                    let saveTimeout;
+                    cell.addEventListener('input', function() {
+                        clearTimeout(saveTimeout);
+                        saveTimeout = setTimeout(() => {
+                            saveTableData();
+                        }, 1000);
+                    });
+                    
+                    // Restore checkbox states
+                    const ul = cell.querySelector('ul.task-list');
+                    if (ul) {
+                        const items = ul.querySelectorAll('li');
+                        items.forEach(li => {
+                            const checkbox = li.querySelector('input[type="checkbox"]');
+                            const textSpan = li.querySelector('.task-text');
+                            
+                            if (checkbox && textSpan) {
+                                checkbox.addEventListener('change', function() {
+                                    if (this.checked) {
+                                        textSpan.style.textDecoration = 'line-through';
+                                        textSpan.style.color = '#999';
+                                    } else {
+                                        textSpan.style.textDecoration = 'none';
+                                        textSpan.style.color = '#333';
+                                    }
+                                    saveTableData();
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+            
+            // Setup save indicator
+            const saveIndicator = document.getElementById('save-indicator');
+            if (saveIndicator) {
+                htmx.on(saveIndicator, 'show-save', function() {
+                    this.style.opacity = '1';
+                    setTimeout(() => {
+                        this.style.opacity = '0';
+                    }, 2000);
+                });
+            }
+        });
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            background: #fefefe;
+            color: #333;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            margin: 30px auto;
+            max-width: 1400px;
+            background: white;
+            position: relative;
+        }
+        
+        table::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border: 2px solid #333;
+            border-radius: 3px;
+            pointer-events: none;
+        }
+        
+        th, td {
+            border: 1.5px solid #333;
+            padding: 16px;
+            text-align: left;
+            vertical-align: top;
+            position: relative;
+        }
+        
+        th {
+            background: #f8f8f8;
+            font-weight: 700;
+            font-size: 16px;
+            text-transform: lowercase;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+        }
+        
+        th:first-child {
+            border-top-left-radius: 3px;
+        }
+        
+        th:last-child {
+            border-top-right-radius: 3px;
+        }
+        
+        th:empty {
+            background: #f8f8f8;
+            min-width: 80px;
+        }
+        
+        td {
+            background: white;
+            font-size: 14px;
+            min-height: 80px;
+            transition: background 0.15s ease;
+        }
+        
+        .editable-cell:hover:not(.read-only) {
+            background: #f9f9f9;
+            cursor: text;
+        }
+        
+        .editable-cell:focus:not(.read-only) {
+            outline: none;
+            background: #fff;
+            box-shadow: inset 0 0 0 2px #96ceb4;
+        }
+        
+        .editable-cell.read-only {
+            background: #f5f5f5;
+            cursor: default;
+            color: #666;
+        }
+        
+        .cell-link {
+            color: #0066cc;
+            text-decoration: none;
+            border-bottom: 1px dotted #0066cc;
+        }
+        
+        .cell-link:hover {
+            color: #004499;
+            border-bottom-style: solid;
+        }
+        
+        #save-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #96ceb4;
+            color: #333;
+            padding: 8px 16px;
+            border: 2px solid #333;
+            border-radius: 3px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        
+        #day-indicator, #week-indicator {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            color: #333;
+            padding: 8px 16px;
+            border: 2px solid #333;
+            border-radius: 3px;
+            z-index: 1000;
+            font-weight: 700;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        #day-dropdown, #week-dropdown {
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            font-size: 14px;
+            font-weight: 700;
+            border: 2px solid #333;
+            border-radius: 3px;
+            padding: 4px 8px;
+            background: white;
+            cursor: pointer;
+            outline: none;
+        }
+        
+        #day-dropdown:hover, #week-dropdown:hover {
+            background: #f9f9f9;
+        }
+        
+        #button-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .control-button {
+            background: white;
+            color: #333;
+            padding: 10px 18px;
+            border: 2px solid #333;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+            font-weight: 400;
+            transition: all 0.15s ease;
+        }
+        
+        .control-button:hover {
+            background: #f0f0f0;
+            transform: translateY(-1px);
+        }
+        
+        .control-button:active {
+            transform: translateY(0);
+        }
+        
+        .control-button.danger {
+            background: #ffaaa5;
+        }
+        
+        .control-button.danger:hover {
+            background: #ff8b85;
+        }
+        
+        #instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #ffeaa7;
+            color: #333;
+            padding: 12px 16px;
+            border: 2px solid #333;
+            border-radius: 3px;
+            z-index: 1000;
+            font-size: 12px;
+            max-width: 220px;
+            line-height: 1.5;
+        }
+        
+        #instructions strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+            margin: 20px 0 10px 0;
+            color: #333;
+        }
+        
+        p {
+            margin: 10px 0;
+        }
+        
+        ::selection {
+            background: #96ceb4;
+            color: #333;
+        }
+    </style>
+
+    <style>
+        .task-list {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .task-list li {
+            margin: 8px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .task-checkbox {
+            margin-top: 4px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .task-text {
+            flex: 1;
+            outline: none;
+        }
+        
+        .task-text[contenteditable]:focus {
+            outline: none;
+        }
+    </style>
+
+</head>
+<body>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>🔁1</th>
+<th>🔁2</th>
+<th>🔁3</th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🕘 09:00am</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>10:00am</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>11:00am</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>🕛 12:00pm</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>01:00pm</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>02:00pm</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>🕑 03:00pm</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>04:00pm</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+
+
+<div id="save-indicator">saved!</div>
+
+<div id="day-indicator">
+    <span>day:</span>
+    <select id="day-dropdown">
+        <option>Loading...</option>
+    </select>
+</div>
+
+<div id="button-container">
+    <button class="control-button danger" onclick="clearTableData()">
+        clear day
+    </button>
+</div>
+
+<div id="instructions">
+    <strong>how to use:</strong>
+    • enter = new task<br>
+    • check to complete<br>
+    • auto-saves
+</div>
+
+</body>
+</html>

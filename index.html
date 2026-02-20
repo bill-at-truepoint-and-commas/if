@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Frontiers</title>
+    <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Day Selector -->
+        <div id="day-indicator">
+            <span>day:</span>
+            <select id="day-dropdown"></select>
+        </div>
+
+        <!-- Save Indicator -->
+        <div id="save-indicator">saved!</div>
+
+        <!-- Main Table -->
+        <table id="daily-table">
+            <thead>
+                <tr>
+                    <th class="time-header">time</th>
+                    <th class="column-header">plan</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr data-time="09:00am">
+                    <td class="time-cell">🕘 09:00am</td>
+                    <td class="block-cell" data-time="09:00am"></td>
+                </tr>
+                <tr data-time="10:00am">
+                    <td class="time-cell">10:00am</td>
+                    <td class="block-cell" data-time="10:00am"></td>
+                </tr>
+                <tr data-time="11:00am">
+                    <td class="time-cell">11:00am</td>
+                    <td class="block-cell" data-time="11:00am"></td>
+                </tr>
+                <tr data-time="12:00pm">
+                    <td class="time-cell">🕛 12:00pm</td>
+                    <td class="block-cell" data-time="12:00pm"></td>
+                </tr>
+                <tr data-time="01:00pm">
+                    <td class="time-cell">01:00pm</td>
+                    <td class="block-cell" data-time="01:00pm"></td>
+                </tr>
+                <tr data-time="02:00pm">
+                    <td class="time-cell">02:00pm</td>
+                    <td class="block-cell" data-time="02:00pm"></td>
+                </tr>
+                <tr data-time="03:00pm">
+                    <td class="time-cell">🕑 03:00pm</td>
+                    <td class="block-cell" data-time="03:00pm"></td>
+                </tr>
+                <tr data-time="04:00pm">
+                    <td class="time-cell">04:00pm</td>
+                    <td class="block-cell" data-time="04:00pm"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Controls -->
+        <div id="button-container">
+            <button class="control-button" onclick="inf.pivot()">pivot</button>
+            <button class="control-button danger" onclick="inf.shutdown()">shutdown</button>
+        </div>
+
+        <!-- Instructions -->
+        <div id="instructions">
+            <strong>commands:</strong>
+            orient · pivot · shutdown · carve
+        </div>
+    </div>
+
+    <script src="src/app.js"></script>
+</body>
+</html>
