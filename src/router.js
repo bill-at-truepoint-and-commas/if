@@ -10,10 +10,10 @@
     // ========================================
     
     const VERBS = {
-        expand: {
+        orient: {
             scopes: ['block', 'day', 'week', 'quarter', 'year'],
             default: 'block',
-            method: 'expandNow'
+            method: 'orient'
         },
         pivot: {
             scopes: ['day'],
@@ -191,7 +191,7 @@
         const input = document.createElement('input');
         input.id = 'command-input';
         input.type = 'text';
-        input.placeholder = 'expand week';
+        input.placeholder = 'orient day';
         input.style.cssText = `
             font-family: 'Comic Neue', 'Comic Sans MS', cursive;
             font-size: 14px;
@@ -270,9 +270,9 @@ Infinite Frontiers Commands v2
 ======================
 
 VERBS:
-  expand [scope]        - Analyze & suggest actions
-  pivot                 - Lock current plan, start fresh
-  shutdown [scope]      - End-of-period review
+  orient [scope]        - Read the room, suggest next moves
+  pivot                 - Reset day, move incomplete tasks to start
+  shutdown              - Close the day, roll over to tomorrow
   carve [params]        - Name time block(s)
   get [scope]           - Read state
   patch [scope] {data}  - Update existing
@@ -282,22 +282,23 @@ VERBS:
 SCOPES:
   block (default)       - Individual time slots
   day                   - Daily planning
-  week                  - Weekly roles
-  quarter               - Quarterly goals
-  year                  - Annual vision
+  week                  - Weekly intentions
+  quarter               - Quarterly goals (future)
+  year                  - Annual vision (future)
 
 EXAMPLES:
-  expand                → Expand current block
-  expand week           → Expand weekly view
-  pivot                 → Start Plan B for today
-  shutdown week         → Review week
+  orient                → Orient on current block
+  orient day            → Survey day vs weekly intentions
+  orient week           → Open weekly intentions panel
+  pivot                 → Reset day, move incomplete tasks to 09:00am
+  shutdown              → Close day, roll over incomplete to tomorrow
   carve deep work       → Name current block
   carve 10am-12pm mtg   → Name multi-hour block
   get day               → Get day state
 
 CHAINING:
   AI can execute multiple commands in sequence:
-  executeChain(['get day', 'patch block', 'expand'])
+  executeChain(['get day', 'orient day', 'post block {tasks: [...]}'])
         `);
     }
 
@@ -329,7 +330,8 @@ CHAINING:
         createCommandInput();
         console.log('Command Router v2 loaded');
         console.log('Type showCommandHelp() for usage');
-        console.log('Available verbs:', Object.keys(VERBS).join(', '));
+        console.log('Commands: orient · carve · pivot · shutdown · get · post · patch');
+        console.log('Tip: orient day — reads weekly intentions vs day plan');
     }
 
     if (document.readyState === 'loading') {
