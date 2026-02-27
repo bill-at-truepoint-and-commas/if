@@ -172,15 +172,30 @@ Command integration: ████████ (100% downhill, shipping)
 
 ### End of Cycle
 1. Test against success criteria (pitch.md)
-2. Write brief retrospective in cycle folder
-3. Move cycle to `archive/`
-4. Use tool in cool-down period (1 week)
+2. Write brief retrospective / session log in cycle folder
+3. **Merge `claude/...` → `main` via PR on GitHub** (human reviews and merges)
+4. Claude starts next cycle's branch fresh from `main`
+5. Move cycle to `archive/`
+6. Use tool in cool-down period (1 week)
 
 ### Shape Next Cycle
-1. Create `cycle-02/` folder
+1. Create `cycle-XX/` folder
 2. Write new `pitch.md` based on learnings
 3. Update `context.md` if architecture changed
 4. Start fresh `reference.md` for new scope
+
+## Git Workflow
+
+### Branching Convention
+- Claude works on `claude/[description]-[session-id]`
+- Human commits go directly to `main`
+- At the **end of each cycle**, human merges Claude's branch → `main` via GitHub PR
+
+### Session Start Checklist (Claude)
+1. `git log --oneline -10` — see recent history
+2. `git status` — check for uncommitted changes
+3. `git fetch origin` — check for remote changes
+4. Merge `origin/main` if it has new commits before starting work
 
 ## Questions?
 
