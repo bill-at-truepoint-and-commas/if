@@ -17,6 +17,22 @@
         <!-- Save Indicator -->
         <div id="save-indicator">saved!</div>
 
+        <!-- Week Panel (hidden by default) -->
+        <div id="week-panel" class="hidden">
+            <div class="week-panel-header">
+                <span>week of: <strong id="week-label"></strong></span>
+                <button id="week-panel-close" class="control-button">done</button>
+            </div>
+            <p class="week-panel-prompt">this week I want to:</p>
+            <textarea id="week-intentions" rows="5" placeholder="one intention per line..."></textarea>
+        </div>
+
+        <!-- Orient Panel (hidden by default) -->
+        <div id="orient-panel" class="hidden">
+            <button id="orient-panel-close" class="control-button">×</button>
+            <div id="orient-content"></div>
+        </div>
+
         <!-- Main Table -->
         <table id="daily-table">
             <thead>
@@ -63,6 +79,8 @@
 
         <!-- Controls -->
         <div id="button-container">
+            <button class="control-button" onclick="inf.orient('week')">week</button>
+            <button class="control-button" onclick="inf.orient('day')">orient</button>
             <button class="control-button" onclick="inf.pivot()">pivot</button>
             <button class="control-button danger" onclick="inf.shutdown()">shutdown</button>
         </div>
@@ -70,10 +88,11 @@
         <!-- Instructions -->
         <div id="instructions">
             <strong>commands:</strong>
-            orient · pivot · shutdown · carve
+            orient · orient day · carve · pivot · shutdown
         </div>
     </div>
 
     <script src="src/app.js"></script>
+    <script src="src/router.js"></script>
 </body>
 </html>
